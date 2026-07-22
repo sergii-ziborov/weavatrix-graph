@@ -1,0 +1,27 @@
+[package]
+name = "weavatrix-graph"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Deterministic, evidence-carrying graph primitives for repository intelligence"
+license = "MIT"
+authors = ["Sergii Ziborov <sergii.ziborov@gmail.com>"]
+homepage = "https://weavatrix.com"
+repository = "https://github.com/sergii-ziborov/weavatrix-graph"
+documentation = "https://docs.rs/weavatrix-graph"
+readme = "README.md"
+keywords = ["graph", "code-graph", "static-analysis", "provenance", "architecture"]
+categories = ["data-structures", "development-tools"]
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1.0.151"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
