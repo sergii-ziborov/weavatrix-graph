@@ -25,8 +25,9 @@ an MCP/CLI transport.
 - deterministic node and edge order independent of insertion order;
 - compact numeric endpoints with incoming and outgoing CSR indexes;
 - a mutable insertion-order graph with generation-stable node and edge keys;
-- BFS, DFS, reachability, unweighted and weighted shortest paths, SCC, cycle
-  discovery, topological sort, MST, and Dinic maximum flow;
+- BFS, DFS, reachability, unweighted and weighted shortest paths, filtered SCC,
+  weak components, condensation DAGs, cycle discovery, topological sort, MST,
+  and Dinic maximum flow;
 - edge-kind, evidence, extractor, confidence, and caller-defined traversal
   filters;
 - undirected incidence CSR, a generic dense matrix, and deterministic random
@@ -106,6 +107,33 @@ let reachable = bfs_filtered(graph, start, Direction::Outgoing, |index| {
 assert!(!reachable.is_empty());
 # Ok(())
 # }
+```
+
+Component algorithms accept the same pure edge predicate. Condensation records
+the original component membership and produces a compact, deduplicated DAG:
+
+```rust
+use weavatrix_graph::{
+    EdgeEndpoints, NodeIndex, Topology, condensation_filtered,
+    strongly_connected_components_filtered,
+};
+
+let topology = Topology::try_from_edges(
+    3,
+    [(0, 1), (1, 0), (1, 2)].map(|(source, target)| {
+        EdgeEndpoints::new(NodeIndex::new(source), NodeIndex::new(target))
+    }),
+)?;
+let without_back_edge = |edge: weavatrix_graph::EdgeIndex| edge.index() != 1;
+
+let components = strongly_connected_components_filtered(
+    &topology,
+    without_back_edge,
+);
+let condensed = condensation_filtered(&topology, without_back_edge)?;
+assert_eq!(components.len(), 3);
+assert_eq!(condensed.topology().node_count(), 3);
+# Ok::<(), weavatrix_graph::GraphError>(())
 ```
 
 ## Extension Kinds
@@ -218,6 +246,24 @@ Deterministic randomized differential tests also compare reachability, shortest
 path existence and cost, SCC partitions, cycle status, topological feasibility,
 MST weight, and maximum-flow value against petgraph.
 
+### Filtered components and condensation
+
+10,000 nodes and 30,000 edges. Each measured sample batches 64 operations; the
+table is the median of five independent harness medians:
+
+| Equal output contract | weavatrix-graph | petgraph |
+| --- | ---: | ---: |
+| Filtered SCC memberships | 0.899 ms | 1.353 ms |
+| Filtered topological order | 0.080 ms | 0.427 ms |
+| Weak component memberships | 0.206 ms | 0.208 ms |
+| Condensation DAG and memberships | 0.821 ms | 2.385 ms |
+
+The petgraph filtered rows use `EdgeFiltered` rather than rebuilding a graph.
+Both weak-component rows return complete deterministic memberships, not only a
+component count. Condensation consumes the petgraph input, so input clones are
+prepared outside the timed interval. Randomized differential tests compare
+exact SCC and weak-component partitions plus canonical condensation edges.
+
 Incoming and outgoing indexes are rebuilt during graph construction and
 deserialization. They are intentionally excluded from JSON, so the canonical
 wire format remains only `nodes` and `edges`. Resolve a stable string id once
@@ -256,7 +302,7 @@ dependencies remain limited, and canonical kind strings cannot collide.
 CI also runs measured Rust coverage with `cargo-llvm-cov`, emits `lcov.info`
 for analyzer import, and fails below 85% line coverage. Weavatrix architecture
 verification is backed by `.weavatrix/architecture.json`. The current local
-LLVM report measures 93.16% of lines and 91.13% of functions.
+LLVM report measures 93.03% of lines and 90.60% of functions.
 
 ## License
 

@@ -78,6 +78,12 @@ fn domain_modules_use_facades_with_focused_leaf_files() {
     );
     assert_leaf_modules(
         &root,
+        "src/algo/components.rs",
+        "src/algo/components",
+        &["condensation.rs", "dag.rs", "scc.rs", "weak.rs"],
+    );
+    assert_leaf_modules(
+        &root,
         "src/undirected.rs",
         "src/undirected",
         &["core.rs", "view.rs"],

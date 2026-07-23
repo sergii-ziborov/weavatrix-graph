@@ -30,6 +30,40 @@ pub fn measure<T>(mut operation: impl FnMut() -> T) -> Measurement {
     }
 }
 
+pub fn measure_batched<T>(iterations: u32, mut operation: impl FnMut() -> T) -> Measurement {
+    measure_batched_with_setup(iterations, || (), |()| operation())
+}
+
+pub fn measure_batched_with_setup<Input, Output>(
+    iterations: u32,
+    mut setup: impl FnMut() -> Input,
+    mut operation: impl FnMut(Input) -> Output,
+) -> Measurement {
+    const WARMUPS: usize = 2;
+    const RUNS: usize = 11;
+    assert!(iterations > 0);
+
+    for _ in 0..WARMUPS {
+        for _ in 0..iterations {
+            std::hint::black_box(operation(setup()));
+        }
+    }
+    let mut samples = Vec::with_capacity(RUNS);
+    for _ in 0..RUNS {
+        let inputs = (0..iterations).map(|_| setup()).collect::<Vec<_>>();
+        let start = Instant::now();
+        for input in inputs {
+            std::hint::black_box(operation(input));
+        }
+        samples.push(start.elapsed() / iterations);
+    }
+    samples.sort_unstable();
+    Measurement {
+        median: samples[RUNS / 2],
+        minimum: samples[0],
+    }
+}
+
 pub fn print_measurement(mode: &str, details: &str, measurement: &Measurement) {
     println!(
         "mode={mode} {details} median_ms={:.3} min_ms={:.3}",

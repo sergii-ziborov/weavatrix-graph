@@ -47,6 +47,13 @@ pub trait GraphView {
 
     fn edge_endpoints(&self, edge: Self::Edge) -> Option<EdgeEndpoints<Self::Node>>;
 
+    fn edge_references(
+        &self,
+    ) -> impl Iterator<Item = (Self::Edge, EdgeEndpoints<Self::Node>)> + '_ {
+        self.edge_indices()
+            .filter_map(|edge| self.edge_endpoints(edge).map(|endpoints| (edge, endpoints)))
+    }
+
     fn outgoing_edges(
         &self,
         node: Self::Node,

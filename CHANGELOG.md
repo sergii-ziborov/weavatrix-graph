@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.0 - 2026-07-23
+
+- Add filter-aware SCC, cycle discovery, cycle checks, and topological sorting
+  for semantic subgraphs selected by edge kind or provenance.
+- Add deterministic weakly connected components, including a filtered variant,
+  using a safe compact union-find implementation.
+- Add `Condensation` snapshots with component membership lookup, deduplicated
+  cross-component edges, and a validated acyclic `Topology`.
+- Add `GraphView::edge_references` with optimized immutable graph and topology
+  implementations for one-pass generic algorithms.
+- Add randomized differential correctness tests against `petgraph` for
+  filtered components, weak components, and condensation structure.
+- Add batched equal-contract component benchmarks with setup excluded from
+  consuming condensation measurements.
+- Keep the MIT license, `unsafe` ban, 300-line source budget, and unchanged
+  one-dependency runtime surface.
+
 ## 0.2.0 - 2026-07-23
 
 - Add compact directed `Topology` with validated numeric endpoints and outgoing

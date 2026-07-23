@@ -161,6 +161,10 @@ impl GraphView for Topology {
         self.edge_endpoints(edge)
     }
 
+    fn edge_references(&self) -> impl Iterator<Item = (EdgeIndex, EdgeEndpoints)> + '_ {
+        self.edge_indices().zip(self.endpoints.iter().copied())
+    }
+
     fn outgoing_edges(
         &self,
         node: NodeIndex,

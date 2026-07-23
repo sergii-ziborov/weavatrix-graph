@@ -4,7 +4,12 @@ mod mst;
 mod shortest;
 mod traversal;
 
-pub use components::{find_cycle, has_cycle, strongly_connected_components, topological_sort};
+pub use components::{
+    Condensation, condensation, condensation_filtered, find_cycle, find_cycle_filtered, has_cycle,
+    has_cycle_filtered, strongly_connected_components, strongly_connected_components_filtered,
+    topological_sort, topological_sort_filtered, weakly_connected_components,
+    weakly_connected_components_filtered,
+};
 pub use flow::{MaxFlow, maximum_flow};
 pub use mst::{SpanningForest, minimum_spanning_forest};
 pub use shortest::{WeightedPath, dijkstra, dijkstra_filtered};
