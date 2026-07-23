@@ -215,6 +215,10 @@ impl GraphView for Graph {
         self.topology.edge_endpoints(edge)
     }
 
+    fn edge_references(&self) -> impl Iterator<Item = (EdgeIndex, EdgeEndpoints)> + '_ {
+        self.topology.edge_references()
+    }
+
     fn outgoing_edges(
         &self,
         node: NodeIndex,

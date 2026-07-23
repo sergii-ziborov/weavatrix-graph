@@ -16,10 +16,12 @@ mod undirected;
 mod working;
 
 pub use algo::{
-    Direction, MaxFlow, SpanningForest, WeightedPath, bfs, bfs_filtered, dfs, dfs_filtered,
-    dijkstra, dijkstra_filtered, find_cycle, has_cycle, maximum_flow, minimum_spanning_forest,
-    reachable, reachable_filtered, shortest_path, shortest_path_filtered,
-    strongly_connected_components, topological_sort,
+    Condensation, Direction, MaxFlow, SpanningForest, WeightedPath, bfs, bfs_filtered,
+    condensation, condensation_filtered, dfs, dfs_filtered, dijkstra, dijkstra_filtered,
+    find_cycle, find_cycle_filtered, has_cycle, has_cycle_filtered, maximum_flow,
+    minimum_spanning_forest, reachable, reachable_filtered, shortest_path, shortest_path_filtered,
+    strongly_connected_components, strongly_connected_components_filtered, topological_sort,
+    topological_sort_filtered, weakly_connected_components, weakly_connected_components_filtered,
 };
 pub use attribute::{AttributeValue, FiniteF64};
 pub use error::{GraphError, Result};
