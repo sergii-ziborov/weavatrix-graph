@@ -126,17 +126,19 @@ median and minimum. Sample result on Windows 11 with Rust 1.97.1:
 | JSON serialization | 5,000 / 15,000, 2.86 MB | 3.1 ms |
 | Validated JSON deserialization | 5,000 / 15,000, 2.86 MB | 21.2 ms |
 
-Competitor sample from the same machine and workload:
+Competitor sample from the same machine and workload, reported as the median of
+five harness executions:
 
 | Mode | Library | Median |
 | --- | --- | ---: |
-| Same `Node`/`Edge` payload build | weavatrix-graph | 33.1 ms |
-| Same `Node`/`Edge` payload build | petgraph adapter | 16.4 ms |
-| Bare topology build | petgraph | 0.175 ms |
-| Bare topology build | graaf | 1.423 ms |
-| Sum in/out degree for 10,000 nodes | weavatrix-graph | 0.026 ms |
-| Sum in/out degree for 10,000 nodes | petgraph | 0.049 ms |
-| Sum in/out degree for 10,000 nodes | graaf | 273.6 ms |
+| Unsorted `Node`/`Edge` build with canonicalization | weavatrix-graph | 26.5 ms |
+| Sorted `Node`/`Edge` build with validation and indexes | weavatrix-graph | 15.6 ms |
+| Sorted `Node`/`Edge` payload build | petgraph adapter | 16.1 ms |
+| Bare topology build | petgraph | 0.109 ms |
+| Bare topology build | graaf | 0.745 ms |
+| Sum in/out degree for 10,000 nodes | weavatrix-graph | 0.013 ms |
+| Sum in/out degree for 10,000 nodes | petgraph | 0.030 ms |
+| Sum in/out degree for 10,000 nodes | graaf | 229.2 ms |
 
 These rows expose different contracts. `petgraph` appends numeric topology to
 preallocated vectors in O(1); its adapter row does not canonicalize, deduplicate,
@@ -150,6 +152,11 @@ deserialization. They are intentionally excluded from JSON, so the canonical
 wire format remains only `nodes` and `edges`. Resolve a stable string id once
 with `node_index`, then use `node_at`, `outgoing_at`, `incoming_at`,
 `out_degree`, and `in_degree` in repeated graph algorithms.
+
+Extractors that already emit canonical nodes and edges can use
+`Graph::try_from_sorted_parts`. It keeps validation, endpoint checks,
+deduplication, and both indexes, while avoiding another full sort. Unordered
+input automatically falls back to the canonicalizing constructor.
 
 `petgraph` and `graaf` are dev-dependencies only. The runtime dependency budget
 remains unchanged.

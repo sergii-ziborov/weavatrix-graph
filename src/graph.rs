@@ -1,10 +1,12 @@
-use crate::{Edge, GraphError, Node, NodeId, Result, SourceSpan};
+use crate::{Edge, GraphError, Node, NodeId, Result};
 use serde::{Deserialize, Deserializer, Serialize, de::Error as _};
 use std::collections::HashMap;
 
 mod index;
+mod validate;
 
-use index::{AdjacencyIndex, OutgoingIndex, canonicalize_edges};
+use index::{AdjacencyIndex, OutgoingIndex, canonicalize_edges, index_canonical_edges};
+use validate::{validate_edge, validate_node};
 
 /// Compact position for repeated graph traversal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -48,6 +50,34 @@ impl Graph {
             builder.add_edge(edge)?;
         }
         builder.build()
+    }
+
+    /// Builds faster when nodes and edges are already in canonical order.
+    ///
+    /// Unordered input safely falls back to [`Self::try_from_parts`].
+    ///
+    /// # Errors
+    ///
+    /// Returns the same validation errors as [`Self::try_from_parts`].
+    pub fn try_from_sorted_parts(nodes: Vec<Node>, mut edges: Vec<Edge>) -> Result<Self> {
+        let nodes_are_sorted = nodes.windows(2).all(|pair| pair[0].id < pair[1].id);
+        if !nodes_are_sorted || !edges.is_sorted() {
+            return Self::try_from_parts(nodes, edges);
+        }
+        for node in &nodes {
+            validate_node(node)?;
+        }
+        for edge in &edges {
+            validate_edge(edge)?;
+        }
+        edges.dedup();
+        let (outgoing_index, incoming_index) = index_canonical_edges(&nodes, &edges)?;
+        Ok(Self {
+            nodes,
+            edges,
+            outgoing_index,
+            incoming_index,
+        })
     }
 
     #[must_use]
@@ -190,12 +220,7 @@ impl GraphBuilder {
     /// Returns an error when the same identifier already has a different
     /// definition or the node contains an invalid source span.
     pub fn add_node(&mut self, node: Node) -> Result<&mut Self> {
-        if let Some(span) = &node.span {
-            validate_span(span)?;
-        }
-        if let Some(language) = &node.language {
-            validate_language(language)?;
-        }
+        validate_node(&node)?;
         if let Some(existing) = self.nodes.get(&node.id) {
             if existing == &node {
                 return Ok(self);
@@ -215,12 +240,7 @@ impl GraphBuilder {
     ///
     /// Returns an error when provenance or its source span is invalid.
     pub fn add_edge(&mut self, edge: Edge) -> Result<&mut Self> {
-        if edge.provenance.extractor.is_empty() {
-            return Err(GraphError::EmptyExtractor);
-        }
-        if let Some(span) = &edge.provenance.span {
-            validate_span(span)?;
-        }
+        validate_edge(&edge)?;
         self.edges.push(edge);
         Ok(self)
     }
@@ -241,37 +261,4 @@ impl GraphBuilder {
             incoming_index,
         })
     }
-}
-
-fn validate_language(language: &str) -> Result<()> {
-    if language.is_empty() || language.trim() != language {
-        return Err(GraphError::InvalidKind {
-            category: "language",
-            value: language.to_owned(),
-        });
-    }
-    Ok(())
-}
-
-fn validate_span(span: &SourceSpan) -> Result<()> {
-    if span.file.is_empty() {
-        return Err(GraphError::InvalidSpan {
-            file: span.file.clone(),
-            reason: "file must not be empty",
-        });
-    }
-    if span.start.line == 0 || span.start.column == 0 || span.end.line == 0 || span.end.column == 0
-    {
-        return Err(GraphError::InvalidSpan {
-            file: span.file.clone(),
-            reason: "positions are one-based",
-        });
-    }
-    if span.end < span.start {
-        return Err(GraphError::InvalidSpan {
-            file: span.file.clone(),
-            reason: "end precedes start",
-        });
-    }
-    Ok(())
 }

@@ -16,12 +16,21 @@ fn main() {
 }
 
 fn compare_build() {
-    let (nodes, edges) = graph_parts(NODE_COUNT, EDGE_COUNT);
-    let ours = measure(|| Graph::try_from_parts(nodes.clone(), edges.clone()).unwrap());
+    let (nodes, mut edges) = graph_parts(NODE_COUNT, EDGE_COUNT);
+    let canonicalizing_edges = edges.clone();
+    edges.sort_unstable();
+    let canonicalizing =
+        measure(|| Graph::try_from_parts(nodes.clone(), canonicalizing_edges.clone()).unwrap());
+    let sorted = measure(|| Graph::try_from_sorted_parts(nodes.clone(), edges.clone()).unwrap());
     let petgraph_payload = measure(|| build_petgraph_payload(&nodes, &edges));
     let petgraph = measure(build_petgraph);
     let graaf = measure(build_graaf);
-    print_measurement("evidence-build", "weavatrix-graph", &ours);
+    print_measurement(
+        "evidence-build-canonicalizing",
+        "weavatrix-graph",
+        &canonicalizing,
+    );
+    print_measurement("evidence-build-sorted-input", "weavatrix-graph", &sorted);
     print_measurement("evidence-build", "petgraph-adapter", &petgraph_payload);
     print_measurement("bare-topology-build", "petgraph", &petgraph);
     print_measurement("bare-topology-build", "graaf", &graaf);

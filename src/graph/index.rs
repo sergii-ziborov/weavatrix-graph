@@ -70,6 +70,44 @@ pub(super) fn canonicalize_edges(
     Ok((canonical, outgoing, incoming))
 }
 
+pub(super) fn index_canonical_edges(
+    nodes: &[Node],
+    edges: &[Edge],
+) -> Result<(OutgoingIndex, AdjacencyIndex)> {
+    let positions = node_positions(nodes);
+    let mut outgoing_counts = vec![0_usize; nodes.len()];
+    let mut targets = Vec::with_capacity(edges.len());
+    for edge in edges {
+        let source = position(&positions, &edge.source, true)?;
+        let target = position(&positions, &edge.target, false)?;
+        outgoing_counts[source] += 1;
+        targets.push(target);
+    }
+    let offsets = prefix_offsets(&outgoing_counts);
+    let outgoing = offsets
+        .windows(2)
+        .map(|window| window[0]..window[1])
+        .collect();
+    Ok((outgoing, incoming_index(nodes.len(), &targets)))
+}
+
+fn node_positions(nodes: &[Node]) -> HashMap<&NodeId, usize> {
+    nodes
+        .iter()
+        .enumerate()
+        .map(|(index, node)| (&node.id, index))
+        .collect()
+}
+
+fn prefix_offsets(counts: &[usize]) -> Vec<usize> {
+    let mut offsets = Vec::with_capacity(counts.len() + 1);
+    offsets.push(0);
+    for &count in counts {
+        offsets.push(offsets.last().copied().unwrap_or(0) + count);
+    }
+    offsets
+}
+
 fn incoming_index(node_count: usize, targets: &[usize]) -> AdjacencyIndex {
     let mut offsets = vec![0_usize; node_count + 1];
     for &target in targets {

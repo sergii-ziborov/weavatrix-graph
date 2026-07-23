@@ -45,6 +45,24 @@ fn insertion_order_does_not_change_the_graph() {
 }
 
 #[test]
+fn sorted_fast_path_matches_canonical_builder_and_falls_back_safely() {
+    let alpha = node("alpha");
+    let beta = node("beta");
+    let gamma = node("gamma");
+    let nodes = vec![alpha.clone(), beta.clone(), gamma.clone()];
+    let mut edges = vec![edge(&alpha, &beta, "first"), edge(&beta, &gamma, "second")];
+    edges.sort_unstable();
+
+    let expected = Graph::try_from_parts(nodes.clone(), edges.clone()).unwrap();
+    let sorted = Graph::try_from_sorted_parts(nodes.clone(), edges.clone()).unwrap();
+    assert_eq!(sorted, expected);
+
+    edges.reverse();
+    let fallback = Graph::try_from_sorted_parts(nodes, edges).unwrap();
+    assert_eq!(fallback, expected);
+}
+
+#[test]
 fn identical_nodes_are_idempotent_but_conflicts_are_rejected() {
     let original = node("same");
     let mut builder = GraphBuilder::new();

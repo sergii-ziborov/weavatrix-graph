@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 - Replace per-node map indexes with source ranges and a compact incoming index.
 - Canonicalize edges in source buckets while preserving deterministic output,
   validation, and evidence deduplication.
+- Add a checked sorted-input fast path that avoids redundant canonical sorting
+  and safely falls back for unordered input.
 - Update performance documentation with comparable and non-comparable modes.
 
 ## 0.1.1 - 2026-07-23
