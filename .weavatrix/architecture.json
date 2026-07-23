@@ -1,34 +1,84 @@
 {
   "architectureContractV": 1,
-  "name": "Proposed no-regressions baseline",
-  "style": "custom",
+  "name": "Weavatrix Graph modular Rust architecture",
+  "style": "facade-modules",
   "enforcement": "ratchet",
   "components": [
     {
-      "id": "src-root",
-      "name": "src (root files)",
+      "id": "core-primitives",
+      "name": "Core primitives and crate facade",
       "paths": [
         "src/attribute.rs",
         "src/error.rs",
-        "src/graph.rs",
-        "src/kind.rs",
+        "src/filter.rs",
         "src/legacy.rs",
         "src/lib.rs",
-        "src/model.rs"
+        "src/model.rs",
+        "src/model"
       ]
     },
     {
-      "id": "src-kind",
-      "name": "src/kind",
+      "id": "kinds",
+      "name": "Extensible kind contracts",
       "paths": [
+        "src/kind.rs",
         "src/kind"
       ]
     },
     {
-      "id": "src-model",
-      "name": "src/model",
+      "id": "topology",
+      "name": "Compact directed topology",
       "paths": [
-        "src/model"
+        "src/topology.rs",
+        "src/topology"
+      ]
+    },
+    {
+      "id": "graph",
+      "name": "Canonical evidence graph",
+      "paths": [
+        "src/graph.rs",
+        "src/graph"
+      ]
+    },
+    {
+      "id": "working-graph",
+      "name": "Mutable working graph",
+      "paths": [
+        "src/working.rs",
+        "src/working"
+      ]
+    },
+    {
+      "id": "algorithms",
+      "name": "Graph algorithms",
+      "paths": [
+        "src/algo.rs",
+        "src/algo"
+      ]
+    },
+    {
+      "id": "undirected",
+      "name": "Undirected topology",
+      "paths": [
+        "src/undirected.rs",
+        "src/undirected"
+      ]
+    },
+    {
+      "id": "matrix",
+      "name": "Dense adjacency matrix",
+      "paths": [
+        "src/matrix.rs",
+        "src/matrix"
+      ]
+    },
+    {
+      "id": "generators",
+      "name": "Deterministic graph generators",
+      "paths": [
+        "src/generator.rs",
+        "src/generator"
       ]
     },
     {
@@ -55,5 +105,5 @@
       "metrics": {}
     }
   },
-  "contractHash": "2de3c11803164e3c9d7e734dc9ba3626485e4a077a2d2eb60b0736b3e0014b29"
+  "contractHash": "35809bac565b1b3c18e3331781bffe9731552c4fd3e4522bf9d359589e1b96a8"
 }

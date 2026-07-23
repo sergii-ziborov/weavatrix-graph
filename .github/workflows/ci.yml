@@ -47,7 +47,9 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install stable Rust
         run: rustup toolchain install stable --profile minimal
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin --locked
+      - name: Install LLVM coverage tools
+        run: |
+          rustup component add llvm-tools-preview
+          cargo install cargo-llvm-cov --locked
       - name: Check test coverage
-        run: cargo tarpaulin --workspace --all-features --timeout 120 --fail-under 85
+        run: cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info --fail-under-lines 85

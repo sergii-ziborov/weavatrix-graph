@@ -1,6 +1,6 @@
 use crate::{Edge, GraphError, Node, Result, SourceSpan};
 
-pub(super) fn validate_node(node: &Node) -> Result<()> {
+pub(crate) fn validate_node(node: &Node) -> Result<()> {
     if let Some(span) = &node.span {
         validate_span(span)?;
     }
@@ -15,7 +15,7 @@ pub(super) fn validate_node(node: &Node) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn validate_edge(edge: &Edge) -> Result<()> {
+pub(crate) fn validate_edge(edge: &Edge) -> Result<()> {
     if edge.provenance.extractor.is_empty() {
         return Err(GraphError::EmptyExtractor);
     }

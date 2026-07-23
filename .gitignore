@@ -1,4 +1,7 @@
 /target/
+/coverage/
+/lcov.info
+/tarpaulin-report.json
 *.tmp
 *.swp
 .DS_Store

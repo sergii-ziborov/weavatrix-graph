@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.0 - 2026-07-23
+
+- Add compact directed `Topology` with validated numeric endpoints and outgoing
+  plus incoming CSR.
+- Add the shared `GraphView`/`IndexGraphView` contracts and algorithms for BFS,
+  DFS, reachability, shortest paths, SCC, cycles, topological sorting, MST, and
+  Dinic maximum flow.
+- Add evidence-aware traversal filtering by edge kind, provenance, extractor,
+  and confidence.
+- Add mutable `WorkingGraph` with local validation, generation-stable keys,
+  removals/replacements, and explicit canonical `freeze()` remapping.
+- Add `UndirectedTopology`, `DenseMatrix<T>`, and dependency-free deterministic
+  graph generators.
+- Add `Graph::try_from_sorted_nodes` and bulk construction paths that avoid the
+  previous heavy builder when node order is already canonical.
+- Add randomized differential correctness tests and equal-contract performance
+  harnesses against `petgraph`, plus `graaf` topology comparisons.
+- Keep the MIT license, `unsafe` ban, 300-line file budget, and `serde` as the
+  only runtime dependency.
+
 ## 0.1.2 - 2026-07-23
 
 - Add dev-only differential benchmarks against `petgraph` and `graaf`.

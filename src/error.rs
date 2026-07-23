@@ -22,6 +22,26 @@ pub enum GraphError {
         file: String,
         reason: &'static str,
     },
+    IndexCapacityExceeded {
+        category: &'static str,
+        count: usize,
+    },
+    InvalidTopologyEndpoint {
+        edge: usize,
+        node: usize,
+        node_count: usize,
+    },
+    ArithmeticOverflow {
+        operation: &'static str,
+    },
+    InvalidNodeIndex {
+        node: usize,
+        node_count: usize,
+    },
+    InvalidProbability {
+        numerator: u64,
+        denominator: u64,
+    },
 }
 
 impl Display for GraphError {
@@ -44,6 +64,36 @@ impl Display for GraphError {
             Self::InvalidSpan { file, reason } => {
                 write!(formatter, "invalid source span for {file:?}: {reason}")
             }
+            Self::IndexCapacityExceeded { category, count } => {
+                write!(
+                    formatter,
+                    "{category} count {count} exceeds u32 index capacity"
+                )
+            }
+            Self::InvalidTopologyEndpoint {
+                edge,
+                node,
+                node_count,
+            } => write!(
+                formatter,
+                "edge {edge} references node index {node}, but node count is {node_count}"
+            ),
+            Self::ArithmeticOverflow { operation } => {
+                write!(formatter, "arithmetic overflow while computing {operation}")
+            }
+            Self::InvalidNodeIndex { node, node_count } => {
+                write!(
+                    formatter,
+                    "node index {node} is outside matrix node count {node_count}"
+                )
+            }
+            Self::InvalidProbability {
+                numerator,
+                denominator,
+            } => write!(
+                formatter,
+                "probability {numerator}/{denominator} must have a nonzero denominator and be at most one"
+            ),
         }
     }
 }

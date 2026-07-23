@@ -106,6 +106,26 @@ fn graph_error_display_messages_cover_every_variant() {
             file: "src/lib.rs".into(),
             reason: "positions are one-based",
         },
+        GraphError::IndexCapacityExceeded {
+            category: "nodes",
+            count: usize::MAX,
+        },
+        GraphError::InvalidTopologyEndpoint {
+            edge: 4,
+            node: 9,
+            node_count: 3,
+        },
+        GraphError::ArithmeticOverflow {
+            operation: "test operation",
+        },
+        GraphError::InvalidNodeIndex {
+            node: 4,
+            node_count: 2,
+        },
+        GraphError::InvalidProbability {
+            numerator: 2,
+            denominator: 1,
+        },
     ];
 
     let messages = errors
@@ -120,6 +140,11 @@ fn graph_error_display_messages_cover_every_variant() {
     assert!(messages.contains("edge target does not exist"));
     assert!(messages.contains("extractor must not be empty"));
     assert!(messages.contains("invalid source span"));
+    assert!(messages.contains("exceeds u32 index capacity"));
+    assert!(messages.contains("references node index"));
+    assert!(messages.contains("arithmetic overflow"));
+    assert!(messages.contains("outside matrix node count"));
+    assert!(messages.contains("probability 2/1"));
     assert!(GraphError::EmptyNodeId.source().is_none());
 }
 

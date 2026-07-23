@@ -1,6 +1,6 @@
 [package]
 name = "weavatrix-graph"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.88"
 description = "Deterministic, evidence-carrying graph primitives for repository intelligence"
@@ -31,6 +31,14 @@ harness = false
 
 [[bench]]
 name = "compare_competitors"
+harness = false
+
+[[bench]]
+name = "topology_competitors"
+harness = false
+
+[[bench]]
+name = "algorithm_competitors"
 harness = false
 
 [lints.rust]

@@ -34,6 +34,61 @@ fn domain_modules_use_facades_with_focused_leaf_files() {
         "src/kind",
         &["edge.rs", "evidence.rs", "node.rs", "string.rs"],
     );
+    assert_leaf_modules(
+        &root,
+        "src/topology.rs",
+        "src/topology",
+        &["core.rs", "csr.rs", "index.rs", "view.rs"],
+    );
+    assert_leaf_modules(
+        &root,
+        "src/graph.rs",
+        "src/graph",
+        &[
+            "builder.rs",
+            "bulk.rs",
+            "core.rs",
+            "index.rs",
+            "validate.rs",
+        ],
+    );
+    assert_leaf_modules(
+        &root,
+        "src/working.rs",
+        "src/working",
+        &["core.rs", "freeze.rs", "key.rs", "mutate.rs", "view.rs"],
+    );
+    assert_leaf_modules(
+        &root,
+        "src/algo.rs",
+        "src/algo",
+        &[
+            "components.rs",
+            "flow.rs",
+            "mst.rs",
+            "shortest.rs",
+            "traversal.rs",
+        ],
+    );
+    assert_leaf_modules(
+        &root,
+        "src/algo/flow.rs",
+        "src/algo/flow",
+        &["core.rs", "cut.rs"],
+    );
+    assert_leaf_modules(
+        &root,
+        "src/undirected.rs",
+        "src/undirected",
+        &["core.rs", "view.rs"],
+    );
+    assert_leaf_modules(&root, "src/matrix.rs", "src/matrix", &["dense.rs"]);
+    assert_leaf_modules(
+        &root,
+        "src/generator.rs",
+        "src/generator",
+        &["deterministic.rs", "random.rs"],
+    );
 }
 
 #[test]

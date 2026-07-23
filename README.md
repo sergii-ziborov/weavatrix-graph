@@ -23,12 +23,38 @@ an MCP/CLI transport.
   provenance;
 - structured node and edge attributes for parser-specific metadata;
 - deterministic node and edge order independent of insertion order;
-- indexed node lookup plus incoming and outgoing adjacency queries;
+- compact numeric endpoints with incoming and outgoing CSR indexes;
+- a mutable insertion-order graph with generation-stable node and edge keys;
+- BFS, DFS, reachability, unweighted and weighted shortest paths, SCC, cycle
+  discovery, topological sort, MST, and Dinic maximum flow;
+- edge-kind, evidence, extractor, confidence, and caller-defined traversal
+  filters;
+- undirected incidence CSR, a generic dense matrix, and deterministic random
+  graph generators;
 - idempotent insertion of identical nodes and edges;
 - rejection of conflicting nodes, dangling edges, and invalid source spans;
 - validated deserialization that cannot bypass graph invariants;
 - compatibility conversion from Weavatrix's legacy `{ nodes, links }` graph;
 - no unsafe code and one runtime dependency: `serde`.
+
+## Layered graph contracts
+
+The crate keeps storage contracts separate instead of making one graph type pay
+for every feature:
+
+| Type | Purpose | Ordering and validation |
+| --- | --- | --- |
+| `Topology` | Immutable directed numeric graph | Preserves edge order, validates compact endpoints, builds outgoing and incoming CSR |
+| `WorkingGraph` | Fast rich mutation and incremental extraction | Preserves insertion order, validates local invariants once, uses generation-stable keys |
+| `Graph` | Immutable evidence snapshot and wire format | Sorts, deduplicates, validates, and emits canonical output |
+| `UndirectedTopology` | General-purpose undirected algorithms | Compact incidence CSR with parallel-edge and self-loop support |
+| `DenseMatrix<T>` | Small dense graphs | Fixed-size O(1) edge lookup without sparse-graph overhead |
+
+`WorkingGraph::freeze()` is the explicit boundary between extraction and
+publication. It returns the canonical `Graph` plus a stable-to-compact index
+map. `Graph::try_from_sorted_nodes` avoids rebuilding the node-id map when an
+extractor already emits unique sorted nodes, while
+`Graph::try_from_sorted_parts` is the fastest fully canonical input path.
 
 ## Example
 
@@ -55,6 +81,31 @@ let graph = builder.build()?;
 assert_eq!(graph.node_count(), 2);
 assert_eq!(graph.edge_count(), 1);
 # Ok::<(), weavatrix_graph::GraphError>(())
+```
+
+Algorithms use `GraphView`/`IndexGraphView`, so the same call works with a
+canonical `Graph`, a numeric `Topology`, or a mutable `WorkingGraph`.
+Filtering stays outside the topology and can inspect the evidence payload:
+
+```rust
+use weavatrix_graph::{
+    Confidence, Direction, EdgeFilter, EdgeKind, EvidenceKind, Graph,
+    bfs_filtered,
+};
+
+# fn inspect(graph: &Graph) -> Result<(), weavatrix_graph::GraphError> {
+let start = graph.node_index("repo:demo").unwrap();
+let filter = EdgeFilter::new()
+    .with_kind(EdgeKind::Contains)
+    .with_evidence(EvidenceKind::Parsed)
+    .with_minimum_confidence(Confidence::High);
+
+let reachable = bfs_filtered(graph, start, Direction::Outgoing, |index| {
+    graph.edge_at(index).is_some_and(|edge| filter.matches(edge))
+});
+assert!(!reachable.is_empty());
+# Ok(())
+# }
 ```
 
 ## Extension Kinds
@@ -116,36 +167,56 @@ comparisons with `petgraph 0.8.3` and `graaf 0.112.0`:
 cargo bench --locked
 ```
 
-Each workload runs two warmups and 11 measured iterations, then reports the
-median and minimum. Sample result on Windows 11 with Rust 1.97.1:
+Each workload runs two warmups and 11 measured iterations. The tables below use
+the median of five independent harness medians on Windows 11 with Rust 1.97.1.
+They compare equal contracts where possible and label preprocessing explicitly.
 
-| Workload | Graph size | Median |
-| --- | ---: | ---: |
-| Validated build | 10,000 nodes / 30,000 edges | 28.2 ms |
-| 10,000 node lookups + 20,000 adjacency walks | 10,000 / 30,000 | 3.2 ms |
-| JSON serialization | 5,000 / 15,000, 2.86 MB | 3.1 ms |
-| Validated JSON deserialization | 5,000 / 15,000, 2.86 MB | 21.2 ms |
+### Rich evidence construction
 
-Competitor sample from the same machine and workload, reported as the median of
-five harness executions:
+10,000 nodes and 30,000 evidence-carrying edges:
 
 | Mode | Library | Median |
 | --- | --- | ---: |
-| Unsorted `Node`/`Edge` build with canonicalization | weavatrix-graph | 26.5 ms |
-| Sorted `Node`/`Edge` build with validation and indexes | weavatrix-graph | 15.6 ms |
-| Sorted `Node`/`Edge` payload build | petgraph adapter | 16.1 ms |
-| Bare topology build | petgraph | 0.109 ms |
-| Bare topology build | graaf | 0.745 ms |
-| Sum in/out degree for 10,000 nodes | weavatrix-graph | 0.013 ms |
-| Sum in/out degree for 10,000 nodes | petgraph | 0.030 ms |
-| Sum in/out degree for 10,000 nodes | graaf | 229.2 ms |
+| Unsorted canonical snapshot | weavatrix-graph `Graph` | 32.862 ms |
+| Sorted canonical snapshot | weavatrix-graph `Graph` | 19.059 ms |
+| Validated mutable append | weavatrix-graph `WorkingGraph` | 19.551 ms |
+| Payload append, no canonicalization | petgraph adapter | 20.215 ms |
+| Mutable append plus canonical `freeze()` | weavatrix-graph | 45.495 ms |
 
-These rows expose different contracts. `petgraph` appends numeric topology to
-preallocated vectors in O(1); its adapter row does not canonicalize, deduplicate,
-or validate the evidence payload. Weavatrix Graph performs those checks and
-uses source buckets plus compact incoming/outgoing indexes. Bare topology is
-therefore not a claim of parity, while repeated bidirectional degree queries
-are a directly comparable hot path.
+The petgraph adapter resolves string ids and clones the same payload but does
+not validate, sort, or deduplicate it. `WorkingGraph` remains slightly faster
+while validating local invariants. `freeze()` is reported separately because it
+adds canonical sorting, evidence deduplication, and immutable CSR construction.
+
+### Compact dual CSR
+
+10,000 numeric nodes and 30,000 edges:
+
+| Mode | Library | Median |
+| --- | --- | ---: |
+| Arbitrary input, endpoint validation, both CSR directions | weavatrix-graph | 0.365 ms |
+| Two CSR builds from caller-provided pre-sorted directions | petgraph | 0.463 ms |
+| Sorting/dedup plus both CSR builds | petgraph | 1.699 ms |
+
+The pre-sorted petgraph row deliberately excludes preparing two differently
+sorted edge arrays. It is retained because that narrower contract can be useful
+when a caller already owns both orders.
+
+### Algorithms
+
+10,000 nodes and 30,000 edges, except maximum flow at 1,000/5,000:
+
+| Algorithm | weavatrix-graph | petgraph |
+| --- | ---: | ---: |
+| BFS | 0.095 ms | 0.125 ms |
+| Strongly connected components | 0.333 ms | 0.606 ms |
+| Dijkstra to one target | 0.783 ms | 1.036 ms |
+| Minimum spanning forest | 1.042 ms | 1.599 ms |
+| Dinic maximum flow | 0.276 ms | 0.284 ms |
+
+Deterministic randomized differential tests also compare reachability, shortest
+path existence and cost, SCC partitions, cycle status, topological feasibility,
+MST weight, and maximum-flow value against petgraph.
 
 Incoming and outgoing indexes are rebuilt during graph construction and
 deserialization. They are intentionally excluded from JSON, so the canonical
@@ -153,10 +224,11 @@ wire format remains only `nodes` and `edges`. Resolve a stable string id once
 with `node_index`, then use `node_at`, `outgoing_at`, `incoming_at`,
 `out_degree`, and `in_degree` in repeated graph algorithms.
 
-Extractors that already emit canonical nodes and edges can use
-`Graph::try_from_sorted_parts`. It keeps validation, endpoint checks,
-deduplication, and both indexes, while avoiding another full sort. Unordered
-input automatically falls back to the canonicalizing constructor.
+Extractors that already emit sorted nodes can use
+`Graph::try_from_sorted_nodes`; fully canonical input can use
+`Graph::try_from_sorted_parts`. Both keep validation, endpoint checks,
+deduplication, and both indexes. Unordered input safely falls back to the
+canonicalizing constructor.
 
 `petgraph` and `graaf` are dev-dependencies only. The runtime dependency budget
 remains unchanged.
@@ -173,15 +245,18 @@ cargo fmt --check
 cargo test --locked
 cargo clippy --locked --all-targets -- -D warnings
 cargo doc --locked --no-deps
+cargo llvm-cov --workspace --all-features --fail-under-lines 85
 cargo bench --locked
 ```
 
-The test suite includes architecture and duplicate-contract ratchets: source
-files stay below 300 lines, `model` and `kind` remain focused folder modules,
-runtime dependencies remain limited, and canonical kind strings cannot collide.
+The test suite includes architecture and duplicate-contract ratchets: every Rust
+source stays at or below 300 lines, domain facades remain small, runtime
+dependencies remain limited, and canonical kind strings cannot collide.
 
-CI also runs measured Rust coverage with `cargo-tarpaulin` and fails below 85%.
-Weavatrix architecture verification is backed by `.weavatrix/architecture.json`.
+CI also runs measured Rust coverage with `cargo-llvm-cov`, emits `lcov.info`
+for analyzer import, and fails below 85% line coverage. Weavatrix architecture
+verification is backed by `.weavatrix/architecture.json`. The current local
+LLVM report measures 93.16% of lines and 91.13% of functions.
 
 ## License
 

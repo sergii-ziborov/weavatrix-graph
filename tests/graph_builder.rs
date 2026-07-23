@@ -58,6 +58,8 @@ fn sorted_fast_path_matches_canonical_builder_and_falls_back_safely() {
     assert_eq!(sorted, expected);
 
     edges.reverse();
+    let sorted_nodes = Graph::try_from_sorted_nodes(nodes.clone(), edges.clone()).unwrap();
+    assert_eq!(sorted_nodes, expected);
     let fallback = Graph::try_from_sorted_parts(nodes, edges).unwrap();
     assert_eq!(fallback, expected);
 }

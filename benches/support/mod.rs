@@ -55,14 +55,10 @@ pub fn graph_parts(node_count: usize, edge_count: usize) -> (Vec<Node>, Vec<Edge
             .with_language("rust")
         })
         .collect();
-    let edges = (0..edge_count)
-        .map(|index| {
-            let source_index = index % node_count;
-            let layer = index / node_count;
-            let mut target_index = (source_index * 37 + layer * 7_919 + 17) % node_count;
-            if target_index == source_index {
-                target_index = (target_index + 1) % node_count;
-            }
+    let edges = topology_pairs(node_count, edge_count)
+        .into_iter()
+        .enumerate()
+        .map(|(index, (source_index, target_index))| {
             let source = NodeId::new(format!("node:{source_index:05}")).unwrap();
             let target = NodeId::new(format!("node:{target_index:05}")).unwrap();
             Edge::new(
@@ -76,4 +72,18 @@ pub fn graph_parts(node_count: usize, edge_count: usize) -> (Vec<Node>, Vec<Edge
         })
         .collect();
     (nodes, edges)
+}
+
+pub fn topology_pairs(node_count: usize, edge_count: usize) -> Vec<(usize, usize)> {
+    (0..edge_count)
+        .map(|index| {
+            let source = index % node_count;
+            let layer = index / node_count;
+            let mut target = (source * 37 + layer * 7_919 + 17) % node_count;
+            if target == source {
+                target = (target + 1) % node_count;
+            }
+            (source, target)
+        })
+        .collect()
 }

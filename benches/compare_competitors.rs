@@ -4,7 +4,7 @@ use graaf::{AddArc, AdjacencyList, Empty, InNeighbors, OutNeighbors};
 use petgraph::{Direction, Graph as PetGraph};
 use std::{collections::HashMap, hint::black_box};
 use support::{build_graph, graph_parts, measure, print_measurement};
-use weavatrix_graph::{Edge, Graph, Node};
+use weavatrix_graph::{Edge, Graph, Node, WorkingGraph};
 
 const NODE_COUNT: usize = 10_000;
 const EDGE_COUNT: usize = 30_000;
@@ -21,7 +21,16 @@ fn compare_build() {
     edges.sort_unstable();
     let canonicalizing =
         measure(|| Graph::try_from_parts(nodes.clone(), canonicalizing_edges.clone()).unwrap());
+    let sorted_nodes = measure(|| {
+        Graph::try_from_sorted_nodes(nodes.clone(), canonicalizing_edges.clone()).unwrap()
+    });
     let sorted = measure(|| Graph::try_from_sorted_parts(nodes.clone(), edges.clone()).unwrap());
+    let working = measure(|| build_working(&nodes, &canonicalizing_edges));
+    let working_and_freeze = measure(|| {
+        build_working(&nodes, &canonicalizing_edges)
+            .freeze()
+            .unwrap()
+    });
     let petgraph_payload = measure(|| build_petgraph_payload(&nodes, &edges));
     let petgraph = measure(build_petgraph);
     let graaf = measure(build_graaf);
@@ -30,10 +39,34 @@ fn compare_build() {
         "weavatrix-graph",
         &canonicalizing,
     );
+    print_measurement(
+        "evidence-build-sorted-nodes",
+        "weavatrix-graph",
+        &sorted_nodes,
+    );
     print_measurement("evidence-build-sorted-input", "weavatrix-graph", &sorted);
+    print_measurement("evidence-working-append", "weavatrix-graph", &working);
+    print_measurement(
+        "evidence-working-append-freeze",
+        "weavatrix-graph",
+        &working_and_freeze,
+    );
     print_measurement("evidence-build", "petgraph-adapter", &petgraph_payload);
     print_measurement("bare-topology-build", "petgraph", &petgraph);
     print_measurement("bare-topology-build", "graaf", &graaf);
+}
+
+fn build_working(nodes: &[Node], edges: &[Edge]) -> WorkingGraph {
+    let mut graph = WorkingGraph::with_capacity(nodes.len(), edges.len());
+    for node in nodes {
+        graph.insert_node(node.clone()).unwrap();
+    }
+    for edge in edges {
+        graph.insert_edge(edge.clone()).unwrap();
+    }
+    assert_eq!(graph.node_count(), NODE_COUNT);
+    assert_eq!(graph.edge_count(), EDGE_COUNT);
+    graph
 }
 
 fn compare_adjacency() {
