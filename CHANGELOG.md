@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.2 - 2026-07-23
+
+- Add dev-only differential benchmarks against `petgraph` and `graaf`.
+- Add compact node indexes and O(1) in/out degree queries for repeated graph
+  algorithms.
+- Replace per-node map indexes with source ranges and a compact incoming index.
+- Canonicalize edges in source buckets while preserving deterministic output,
+  validation, and evidence deduplication.
+- Update performance documentation with comparable and non-comparable modes.
+
 ## 0.1.1 - 2026-07-23
 
 - Add deterministic incoming and outgoing adjacency indexes.

@@ -123,6 +123,14 @@ fn incoming_outgoing_and_lookup_are_consistent() {
     assert_eq!(graph.outgoing(&source.id).count(), 1);
     assert_eq!(graph.incoming(&target.id).count(), 1);
     assert_eq!(graph.outgoing(&target.id).count(), 0);
+    let source_index = graph.node_index("source").unwrap();
+    let target_index = graph.node_index("target").unwrap();
+    assert_eq!(graph.node_at(source_index), Some(&source));
+    assert_eq!(source_index.index(), 0);
+    assert_eq!(graph.outgoing_at(source_index).count(), 1);
+    assert_eq!(graph.incoming_at(target_index).count(), 1);
+    assert_eq!(graph.out_degree(source_index), Some(1));
+    assert_eq!(graph.in_degree(target_index), Some(1));
 }
 
 #[test]

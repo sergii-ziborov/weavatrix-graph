@@ -1,15 +1,30 @@
 use crate::{Edge, GraphError, Node, NodeId, Result, SourceSpan};
 use serde::{Deserialize, Deserializer, Serialize, de::Error as _};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::HashMap;
+
+mod index;
+
+use index::{AdjacencyIndex, OutgoingIndex, canonicalize_edges};
+
+/// Compact position for repeated graph traversal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GraphNodeIndex(usize);
+
+impl GraphNodeIndex {
+    #[must_use]
+    pub const fn index(self) -> usize {
+        self.0
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Graph {
     nodes: Vec<Node>,
     edges: Vec<Edge>,
     #[serde(skip)]
-    outgoing_index: BTreeMap<NodeId, Vec<usize>>,
+    outgoing_index: OutgoingIndex,
     #[serde(skip)]
-    incoming_index: BTreeMap<NodeId, Vec<usize>>,
+    incoming_index: AdjacencyIndex,
 }
 
 impl Graph {
@@ -23,7 +38,9 @@ impl Graph {
         nodes: impl IntoIterator<Item = Node>,
         edges: impl IntoIterator<Item = Edge>,
     ) -> Result<Self> {
-        let mut builder = GraphBuilder::new();
+        let nodes = nodes.into_iter();
+        let edges = edges.into_iter();
+        let mut builder = GraphBuilder::with_capacity(nodes.size_hint().0, edges.size_hint().0);
         for node in nodes {
             builder.add_node(node)?;
         }
@@ -45,32 +62,64 @@ impl Graph {
 
     #[must_use]
     pub fn node(&self, id: &str) -> Option<&Node> {
+        self.node_index(id).and_then(|index| self.node_at(index))
+    }
+
+    pub fn outgoing<'graph>(&'graph self, id: &NodeId) -> impl Iterator<Item = &'graph Edge> {
+        self.node_index(id.as_str())
+            .and_then(|index| self.outgoing_index.get(index.0).cloned())
+            .into_iter()
+            .flatten()
+            .map(|index| &self.edges[index])
+    }
+
+    pub fn incoming<'graph>(&'graph self, id: &NodeId) -> impl Iterator<Item = &'graph Edge> {
+        self.node_index(id.as_str())
+            .and_then(|index| self.incoming_index.get(index.0))
+            .into_iter()
+            .flatten()
+            .map(|&index| &self.edges[index])
+    }
+
+    /// Resolves a stable id once for repeated indexed traversal.
+    #[must_use]
+    pub fn node_index(&self, id: &str) -> Option<GraphNodeIndex> {
         self.nodes
             .binary_search_by(|node| node.id.as_str().cmp(id))
             .ok()
-            .map(|index| &self.nodes[index])
+            .map(GraphNodeIndex)
     }
 
-    pub fn outgoing<'graph>(
-        &'graph self,
-        id: &'graph NodeId,
-    ) -> impl Iterator<Item = &'graph Edge> {
+    #[must_use]
+    pub fn node_at(&self, index: GraphNodeIndex) -> Option<&Node> {
+        self.nodes.get(index.0)
+    }
+
+    pub fn outgoing_at(&self, index: GraphNodeIndex) -> impl Iterator<Item = &Edge> {
         self.outgoing_index
-            .get(id)
+            .get(index.0)
+            .cloned()
             .into_iter()
             .flatten()
-            .map(|index| &self.edges[*index])
+            .map(|edge| &self.edges[edge])
     }
 
-    pub fn incoming<'graph>(
-        &'graph self,
-        id: &'graph NodeId,
-    ) -> impl Iterator<Item = &'graph Edge> {
+    pub fn incoming_at(&self, index: GraphNodeIndex) -> impl Iterator<Item = &Edge> {
         self.incoming_index
-            .get(id)
+            .get(index.0)
             .into_iter()
             .flatten()
-            .map(|index| &self.edges[*index])
+            .map(|&edge| &self.edges[edge])
+    }
+
+    #[must_use]
+    pub fn out_degree(&self, index: GraphNodeIndex) -> Option<usize> {
+        self.outgoing_index.get(index.0).map(std::ops::Range::len)
+    }
+
+    #[must_use]
+    pub fn in_degree(&self, index: GraphNodeIndex) -> Option<usize> {
+        self.incoming_index.len(index.0)
     }
 
     #[must_use]
@@ -112,16 +161,25 @@ impl<'de> Deserialize<'de> for Graph {
 
 #[derive(Debug, Default)]
 pub struct GraphBuilder {
-    nodes: BTreeMap<NodeId, Node>,
-    edges: BTreeSet<Edge>,
+    nodes: HashMap<NodeId, Node>,
+    edges: Vec<Edge>,
 }
 
 impl GraphBuilder {
     #[must_use]
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
-            nodes: BTreeMap::new(),
-            edges: BTreeSet::new(),
+            nodes: HashMap::new(),
+            edges: Vec::new(),
+        }
+    }
+
+    /// Creates a builder with storage sized for the expected graph.
+    #[must_use]
+    pub fn with_capacity(nodes: usize, edges: usize) -> Self {
+        Self {
+            nodes: HashMap::with_capacity(nodes),
+            edges: Vec::with_capacity(edges),
         }
     }
 
@@ -163,7 +221,7 @@ impl GraphBuilder {
         if let Some(span) = &edge.provenance.span {
             validate_span(span)?;
         }
-        self.edges.insert(edge);
+        self.edges.push(edge);
         Ok(self)
     }
 
@@ -173,39 +231,16 @@ impl GraphBuilder {
     ///
     /// Returns an error when an edge references a missing source or target.
     pub fn build(self) -> Result<Graph> {
-        for edge in &self.edges {
-            if !self.nodes.contains_key(&edge.source) {
-                return Err(GraphError::MissingEdgeSource {
-                    id: edge.source.to_string(),
-                });
-            }
-            if !self.nodes.contains_key(&edge.target) {
-                return Err(GraphError::MissingEdgeTarget {
-                    id: edge.target.to_string(),
-                });
-            }
-        }
-        let edges = self.edges.into_iter().collect::<Vec<_>>();
-        let (outgoing_index, incoming_index) = build_edge_indexes(&edges);
+        let mut nodes = self.nodes.into_values().collect::<Vec<_>>();
+        nodes.sort_unstable_by(|left, right| left.id.cmp(&right.id));
+        let (edges, outgoing_index, incoming_index) = canonicalize_edges(&nodes, self.edges)?;
         Ok(Graph {
-            nodes: self.nodes.into_values().collect(),
+            nodes,
             edges,
             outgoing_index,
             incoming_index,
         })
     }
-}
-
-fn build_edge_indexes(
-    edges: &[Edge],
-) -> (BTreeMap<NodeId, Vec<usize>>, BTreeMap<NodeId, Vec<usize>>) {
-    let mut outgoing = BTreeMap::<NodeId, Vec<usize>>::new();
-    let mut incoming = BTreeMap::<NodeId, Vec<usize>>::new();
-    for (index, edge) in edges.iter().enumerate() {
-        outgoing.entry(edge.source.clone()).or_default().push(index);
-        incoming.entry(edge.target.clone()).or_default().push(index);
-    }
-    (outgoing, incoming)
 }
 
 fn validate_language(language: &str) -> Result<()> {

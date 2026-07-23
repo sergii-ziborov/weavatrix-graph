@@ -2,8 +2,7 @@
 
 use std::time::{Duration, Instant};
 use weavatrix_graph::{
-    Confidence, Edge, EdgeKind, EvidenceKind, Graph, GraphBuilder, Node, NodeId, NodeKind,
-    Provenance,
+    Confidence, Edge, EdgeKind, EvidenceKind, Graph, Node, NodeId, NodeKind, Provenance,
 };
 
 pub struct Measurement {
@@ -40,33 +39,41 @@ pub fn print_measurement(mode: &str, details: &str, measurement: &Measurement) {
 }
 
 pub fn build_graph(node_count: usize, edge_count: usize) -> Graph {
-    let mut builder = GraphBuilder::new();
-    for index in 0..node_count {
-        builder
-            .add_node(
-                Node::new(
-                    format!("node:{index:05}"),
-                    format!("node_{index}"),
-                    NodeKind::Function,
-                )
-                .unwrap()
-                .with_language("rust"),
+    let (nodes, edges) = graph_parts(node_count, edge_count);
+    Graph::try_from_parts(nodes, edges).unwrap()
+}
+
+pub fn graph_parts(node_count: usize, edge_count: usize) -> (Vec<Node>, Vec<Edge>) {
+    let nodes = (0..node_count)
+        .map(|index| {
+            Node::new(
+                format!("node:{index:05}"),
+                format!("node_{index}"),
+                NodeKind::Function,
             )
-            .unwrap();
-    }
-    for index in 0..edge_count {
-        let source = NodeId::new(format!("node:{:05}", index % node_count)).unwrap();
-        let target = NodeId::new(format!("node:{:05}", (index * 37 + 17) % node_count)).unwrap();
-        builder
-            .add_edge(Edge::new(
+            .unwrap()
+            .with_language("rust")
+        })
+        .collect();
+    let edges = (0..edge_count)
+        .map(|index| {
+            let source_index = index % node_count;
+            let layer = index / node_count;
+            let mut target_index = (source_index * 37 + layer * 7_919 + 17) % node_count;
+            if target_index == source_index {
+                target_index = (target_index + 1) % node_count;
+            }
+            let source = NodeId::new(format!("node:{source_index:05}")).unwrap();
+            let target = NodeId::new(format!("node:{target_index:05}")).unwrap();
+            Edge::new(
                 source,
                 target,
                 EdgeKind::Calls,
                 Provenance::new("bench.graph", EvidenceKind::Resolved, Confidence::High)
                     .unwrap()
                     .with_detail(format!("edge:{index}")),
-            ))
-            .unwrap();
-    }
-    builder.build().unwrap()
+            )
+        })
+        .collect();
+    (nodes, edges)
 }

@@ -108,9 +108,9 @@ attributes.
 
 ## Benchmarks
 
-The repository includes dependency-free benchmark harnesses for graph
-construction, indexed queries, JSON serialization, and validated
-deserialization:
+The repository includes benchmark harnesses for graph construction, indexed
+queries, JSON serialization, validated deserialization, and dev-only
+comparisons with `petgraph 0.8.3` and `graaf 0.112.0`:
 
 ```sh
 cargo bench --locked
@@ -121,14 +121,38 @@ median and minimum. Sample result on Windows 11 with Rust 1.97.1:
 
 | Workload | Graph size | Median |
 | --- | ---: | ---: |
-| Validated build | 10,000 nodes / 30,000 edges | 55.5 ms |
-| 10,000 node lookups + 20,000 adjacency walks | 10,000 / 30,000 | 4.4 ms |
-| JSON serialization | 5,000 / 15,000, 2.86 MB | 3.4 ms |
-| Validated JSON deserialization | 5,000 / 15,000, 2.86 MB | 28.7 ms |
+| Validated build | 10,000 nodes / 30,000 edges | 28.2 ms |
+| 10,000 node lookups + 20,000 adjacency walks | 10,000 / 30,000 | 3.2 ms |
+| JSON serialization | 5,000 / 15,000, 2.86 MB | 3.1 ms |
+| Validated JSON deserialization | 5,000 / 15,000, 2.86 MB | 21.2 ms |
+
+Competitor sample from the same machine and workload:
+
+| Mode | Library | Median |
+| --- | --- | ---: |
+| Same `Node`/`Edge` payload build | weavatrix-graph | 33.1 ms |
+| Same `Node`/`Edge` payload build | petgraph adapter | 16.4 ms |
+| Bare topology build | petgraph | 0.175 ms |
+| Bare topology build | graaf | 1.423 ms |
+| Sum in/out degree for 10,000 nodes | weavatrix-graph | 0.026 ms |
+| Sum in/out degree for 10,000 nodes | petgraph | 0.049 ms |
+| Sum in/out degree for 10,000 nodes | graaf | 273.6 ms |
+
+These rows expose different contracts. `petgraph` appends numeric topology to
+preallocated vectors in O(1); its adapter row does not canonicalize, deduplicate,
+or validate the evidence payload. Weavatrix Graph performs those checks and
+uses source buckets plus compact incoming/outgoing indexes. Bare topology is
+therefore not a claim of parity, while repeated bidirectional degree queries
+are a directly comparable hot path.
 
 Incoming and outgoing indexes are rebuilt during graph construction and
 deserialization. They are intentionally excluded from JSON, so the canonical
-wire format remains only `nodes` and `edges`.
+wire format remains only `nodes` and `edges`. Resolve a stable string id once
+with `node_index`, then use `node_at`, `outgoing_at`, `incoming_at`,
+`out_degree`, and `in_degree` in repeated graph algorithms.
+
+`petgraph` and `graaf` are dev-dependencies only. The runtime dependency budget
+remains unchanged.
 
 Timing varies by allocator, CPU, and build toolchain. Run the included harnesses
 on the deployment target before using these figures for capacity planning.
