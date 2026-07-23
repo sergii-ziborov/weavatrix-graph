@@ -1,0 +1,59 @@
+{
+  "architectureContractV": 1,
+  "name": "Proposed no-regressions baseline",
+  "style": "custom",
+  "enforcement": "ratchet",
+  "components": [
+    {
+      "id": "src-root",
+      "name": "src (root files)",
+      "paths": [
+        "src/attribute.rs",
+        "src/error.rs",
+        "src/graph.rs",
+        "src/kind.rs",
+        "src/legacy.rs",
+        "src/lib.rs",
+        "src/model.rs"
+      ]
+    },
+    {
+      "id": "src-kind",
+      "name": "src/kind",
+      "paths": [
+        "src/kind"
+      ]
+    },
+    {
+      "id": "src-model",
+      "name": "src/model",
+      "paths": [
+        "src/model"
+      ]
+    },
+    {
+      "id": "examples",
+      "name": "examples",
+      "paths": [
+        "examples"
+      ]
+    }
+  ],
+  "dependencyRules": [],
+  "budgets": {
+    "runtimeCycles": 0,
+    "maxFileLoc": 300
+  },
+  "technologies": {
+    "required": [],
+    "forbidden": []
+  },
+  "exceptions": [],
+  "ratchet": {
+    "baseline": {
+      "fingerprints": [],
+      "metrics": {}
+    }
+  },
+  "contractHash": "2de3c11803164e3c9d7e734dc9ba3626485e4a077a2d2eb60b0736b3e0014b29"
+}

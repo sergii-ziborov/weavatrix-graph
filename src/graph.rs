@@ -123,6 +123,9 @@ impl GraphBuilder {
         if let Some(span) = &node.span {
             validate_span(span)?;
         }
+        if let Some(language) = &node.language {
+            validate_language(language)?;
+        }
         if let Some(existing) = self.nodes.get(&node.id) {
             if existing == &node {
                 return Ok(self);
@@ -175,6 +178,16 @@ impl GraphBuilder {
             edges: self.edges.into_iter().collect(),
         })
     }
+}
+
+fn validate_language(language: &str) -> Result<()> {
+    if language.is_empty() || language.trim() != language {
+        return Err(GraphError::InvalidKind {
+            category: "language",
+            value: language.to_owned(),
+        });
+    }
+    Ok(())
 }
 
 fn validate_span(span: &SourceSpan) -> Result<()> {

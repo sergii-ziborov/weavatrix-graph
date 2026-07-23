@@ -39,3 +39,15 @@ jobs:
         run: rustup toolchain install 1.88.0 --profile minimal
       - name: Check all targets
         run: cargo +1.88.0 check --all-targets --locked
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install stable Rust
+        run: rustup toolchain install stable --profile minimal
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin --locked
+      - name: Check test coverage
+        run: cargo tarpaulin --workspace --all-features --timeout 120 --fail-under 85
