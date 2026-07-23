@@ -1,64 +1,41 @@
-use std::time::Instant;
-use weavatrix_graph::{
-    Confidence, Edge, EdgeKind, EvidenceKind, Graph, GraphBuilder, Node, NodeId, NodeKind,
-    Provenance,
-};
+mod support;
+
+use support::{build_graph, measure, print_measurement};
+
+const NODE_COUNT: usize = 10_000;
+const EDGE_COUNT: usize = 30_000;
 
 fn main() {
-    let start = Instant::now();
-    let graph = build_graph(10_000, 30_000);
-    let build_elapsed = start.elapsed();
+    println!("statistic=median runs=11 warmups=2");
+    let build = measure(|| build_graph(NODE_COUNT, EDGE_COUNT));
+    print_measurement("build", "nodes=10000 edges=30000", &build);
 
-    let lookup_start = Instant::now();
-    let hits = (0..10_000)
-        .filter(|index| graph.node(&format!("node:{index:05}")).is_some())
-        .count();
-    let outgoing = graph.outgoing(&graph.nodes()[0].id).count();
-    let incoming = graph.incoming(&graph.nodes()[999].id).count();
-    let lookup_elapsed = lookup_start.elapsed();
-
-    assert_eq!(hits, 10_000);
-    assert_eq!(graph.node_count(), 10_000);
-    assert_eq!(graph.edge_count(), 30_000);
-    println!(
-        "graph_builder nodes={} edges={} outgoing0={} incoming999={} build_ms={:.3} lookup_ms={:.3}",
-        graph.node_count(),
-        graph.edge_count(),
-        outgoing,
-        incoming,
-        build_elapsed.as_secs_f64() * 1_000.0,
-        lookup_elapsed.as_secs_f64() * 1_000.0
+    let graph = build_graph(NODE_COUNT, EDGE_COUNT);
+    let node_ids = graph
+        .nodes()
+        .iter()
+        .map(|node| node.id.as_str().to_owned())
+        .collect::<Vec<_>>();
+    let expected = query_checksum(&graph, &node_ids);
+    let queries = measure(|| {
+        let checksum = query_checksum(&graph, &node_ids);
+        assert_eq!(checksum, expected);
+        checksum
+    });
+    print_measurement(
+        "indexed-queries",
+        "node_lookups=10000 adjacency_walks=20000",
+        &queries,
     );
 }
 
-fn build_graph(node_count: usize, edge_count: usize) -> Graph {
-    let mut builder = GraphBuilder::new();
-    for index in 0..node_count {
-        builder
-            .add_node(
-                Node::new(
-                    format!("node:{index:05}"),
-                    format!("node_{index}"),
-                    NodeKind::Function,
-                )
-                .unwrap()
-                .with_language("rust"),
-            )
-            .unwrap();
-    }
-    for index in 0..edge_count {
-        let source = NodeId::new(format!("node:{:05}", index % node_count)).unwrap();
-        let target = NodeId::new(format!("node:{:05}", (index * 37 + 17) % node_count)).unwrap();
-        builder
-            .add_edge(Edge::new(
-                source,
-                target,
-                EdgeKind::Calls,
-                Provenance::new("bench.graph", EvidenceKind::Resolved, Confidence::High)
-                    .unwrap()
-                    .with_detail(format!("edge:{index}")),
-            ))
-            .unwrap();
-    }
-    builder.build().unwrap()
+fn query_checksum(graph: &weavatrix_graph::Graph, node_ids: &[String]) -> usize {
+    node_ids
+        .iter()
+        .map(|node_id| {
+            let node = graph.node(node_id).is_some();
+            let parsed = weavatrix_graph::NodeId::new(node_id).unwrap();
+            usize::from(node) + graph.outgoing(&parsed).count() + graph.incoming(&parsed).count()
+        })
+        .sum()
 }

@@ -1,6 +1,10 @@
 # Weavatrix Graph
 
 [![CI](https://github.com/sergii-ziborov/weavatrix-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/sergii-ziborov/weavatrix-graph/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/weavatrix-graph.svg)](https://crates.io/crates/weavatrix-graph)
+[![docs.rs](https://docs.rs/weavatrix-graph/badge.svg)](https://docs.rs/weavatrix-graph)
+[![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/sergii-ziborov/weavatrix-graph/blob/main/LICENSE)
+[![MSRV](https://img.shields.io/badge/MSRV-1.88-blue.svg)](https://github.com/sergii-ziborov/weavatrix-graph/blob/main/Cargo.toml)
 
 `weavatrix-graph` is a small Rust library for deterministic, typed,
 evidence-carrying graphs. It is the graph foundation of Weavatrix, but it is
@@ -19,6 +23,7 @@ an MCP/CLI transport.
   provenance;
 - structured node and edge attributes for parser-specific metadata;
 - deterministic node and edge order independent of insertion order;
+- indexed node lookup plus incoming and outgoing adjacency queries;
 - idempotent insertion of identical nodes and edges;
 - rejection of conflicting nodes, dangling edges, and invalid source spans;
 - validated deserialization that cannot bypass graph invariants;
@@ -101,6 +106,33 @@ Legacy metadata such as `line`, `compileOnly`, `typeOnly`, `specifier`,
 `usage`, `source_range`, and unknown extension fields is preserved as structured
 attributes.
 
+## Benchmarks
+
+The repository includes dependency-free benchmark harnesses for graph
+construction, indexed queries, JSON serialization, and validated
+deserialization:
+
+```sh
+cargo bench --locked
+```
+
+Each workload runs two warmups and 11 measured iterations, then reports the
+median and minimum. Sample result on Windows 11 with Rust 1.97.1:
+
+| Workload | Graph size | Median |
+| --- | ---: | ---: |
+| Validated build | 10,000 nodes / 30,000 edges | 55.5 ms |
+| 10,000 node lookups + 20,000 adjacency walks | 10,000 / 30,000 | 4.4 ms |
+| JSON serialization | 5,000 / 15,000, 2.86 MB | 3.4 ms |
+| Validated JSON deserialization | 5,000 / 15,000, 2.86 MB | 28.7 ms |
+
+Incoming and outgoing indexes are rebuilt during graph construction and
+deserialization. They are intentionally excluded from JSON, so the canonical
+wire format remains only `nodes` and `edges`.
+
+Timing varies by allocator, CPU, and build toolchain. Run the included harnesses
+on the deployment target before using these figures for capacity planning.
+
 ## Quality Gates
 
 Local checks:
@@ -110,6 +142,7 @@ cargo fmt --check
 cargo test --locked
 cargo clippy --locked --all-targets -- -D warnings
 cargo doc --locked --no-deps
+cargo bench --locked
 ```
 
 The test suite includes architecture and duplicate-contract ratchets: source

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.1 - 2026-07-23
+
+- Add deterministic incoming and outgoing adjacency indexes.
+- Reduce a 10,000-node/30,000-edge full adjacency workload from seconds to
+  milliseconds without changing the serialized graph contract.
+- Add repeatable build, query, JSON serialization, and validated
+  deserialization benchmarks.
+- Document benchmark methodology and sample results.
+
 ## 0.1.0 - 2026-07-22
 
 - Initial typed graph model and builder.

@@ -55,6 +55,9 @@ fn graph_json_round_trip_preserves_the_canonical_graph() {
     .unwrap();
 
     let encoded = serde_json::to_string(&graph).unwrap();
+    let wire: Value = serde_json::from_str(&encoded).unwrap();
+    let keys = wire.as_object().unwrap().keys().collect::<Vec<_>>();
+    assert_eq!(keys, ["edges", "nodes"]);
     let decoded: Graph = serde_json::from_str(&encoded).unwrap();
     assert_eq!(decoded, graph);
 }

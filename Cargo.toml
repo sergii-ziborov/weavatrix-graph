@@ -1,6 +1,6 @@
 [package]
 name = "weavatrix-graph"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.88"
 description = "Deterministic, evidence-carrying graph primitives for repository intelligence"
@@ -21,6 +21,10 @@ serde_json = "1.0.151"
 
 [[bench]]
 name = "graph_builder"
+harness = false
+
+[[bench]]
+name = "graph_serde"
 harness = false
 
 [lints.rust]
