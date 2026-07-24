@@ -25,9 +25,11 @@ an MCP/CLI transport.
 - deterministic node and edge order independent of insertion order;
 - compact numeric endpoints with incoming and outgoing CSR indexes;
 - a mutable insertion-order graph with generation-stable node and edge keys;
-- BFS, DFS, reachability, unweighted and weighted shortest paths, filtered SCC,
-  weak components, condensation DAGs, cycle discovery, topological sort, MST,
-  and Dinic maximum flow;
+- BFS, DFS, reachability, unweighted shortest paths, Dijkstra, A*, signed
+  Bellman-Ford, filtered SCC, weak components, condensation DAGs, cycle
+  discovery, topological sort, MST, and Dinic maximum flow;
+- standard `PageRank` with dangling-mass redistribution, control-flow dominators,
+  and deterministic DAG transitive reduction plus closure;
 - edge-kind, evidence, extractor, confidence, and caller-defined traversal
   filters;
 - undirected incidence CSR, a generic dense matrix, and deterministic random
@@ -133,6 +135,35 @@ let components = strongly_connected_components_filtered(
 let condensed = condensation_filtered(&topology, without_back_edge)?;
 assert_eq!(components.len(), 3);
 assert_eq!(condensed.topology().node_count(), 3);
+# Ok::<(), weavatrix_graph::GraphError>(())
+```
+
+Advanced algorithms retain the same index/view contract. A* accepts an
+admissible heuristic, Bellman-Ford reports checked signed overflow and reachable
+negative cycles, and `PageRank` returns values in deterministic graph-node order:
+
+```rust
+use weavatrix_graph::{
+    EdgeEndpoints, NodeIndex, Topology, astar, dominators, page_rank,
+};
+
+let graph = Topology::try_from_edges(
+    4,
+    [(0, 1), (0, 2), (1, 3), (2, 3)].map(|(source, target)| {
+        EdgeEndpoints::new(NodeIndex::new(source), NodeIndex::new(target))
+    }),
+)?;
+let weights = [2_u64, 5, 2, 1];
+let path = astar(
+    &graph,
+    NodeIndex::new(0),
+    NodeIndex::new(3),
+    |edge| weights[edge.index()],
+    |_| 0,
+).unwrap();
+assert_eq!(path.total_cost(), 4);
+assert_eq!(page_rank(&graph, 0.85, 20)?.len(), 4);
+assert!(dominators(&graph, NodeIndex::new(0)).is_some());
 # Ok::<(), weavatrix_graph::GraphError>(())
 ```
 
@@ -246,6 +277,37 @@ Deterministic randomized differential tests also compare reachability, shortest
 path existence and cost, SCC partitions, cycle status, topological feasibility,
 MST weight, and maximum-flow value against petgraph.
 
+### Advanced algorithms
+
+The A* and dominator workloads use 10,000 nodes / 30,000 edges. Bellman-Ford
+uses a 1,000-node / 5,000-edge signed DAG, `PageRank` uses 500 nodes / 2,000
+unique edges and 20 iterations, and DAG reduction/closure uses 512 nodes /
+3,000 edges. Values are the median of five independent harness medians:
+
+| Algorithm | weavatrix-graph | petgraph | Result |
+| --- | ---: | ---: | --- |
+| A*, zero heuristic, cost and path | 1.130 ms | 1.495 ms | 1.32x faster |
+| Bellman-Ford, distances and predecessors | 0.057 ms | 0.033 ms | 1.73x slower |
+| `PageRank`, 20 iterations | 0.071 ms | 12.892 ms | 181.58x faster |
+| Immediate dominators | 2.161 ms | 3.163 ms | 1.46x faster |
+| DAG transitive reduction and closure | 0.684 ms | 1.051 ms | 1.54x faster |
+
+The DAG row includes `petgraph`'s required conversion to a topologically ordered
+adjacency list; `weavatrix-graph` accepts the original graph, validates
+acyclicity, and returns deterministic node endpoints. The `PageRank` workload has
+no parallel edges; our implementation is O(V + E) per iteration and follows
+the standard teleport plus uniform dangling-mass contract. Its correctness is
+checked against an independent reference because `petgraph 0.8.3` uses a
+different transition formula.
+
+The Bellman-Ford row is intentionally retained as a known tradeoff, not hidden:
+our operation snapshots the filtered signed weights once, uses checked `i64`
+addition, distinguishes unreachable nodes without an infinity sentinel, and
+returns overflow or reachable-negative-cycle errors. `petgraph` uses `f64`
+distances and does not provide integer overflow semantics. Randomized
+differential tests cover A* costs, Bellman-Ford distances and negative-cycle
+status, immediate dominators, and exact transitive reduction/closure edges.
+
 ### Filtered components and condensation
 
 10,000 nodes and 30,000 edges. Each measured sample batches 64 operations; the
@@ -302,7 +364,7 @@ dependencies remain limited, and canonical kind strings cannot collide.
 CI also runs measured Rust coverage with `cargo-llvm-cov`, emits `lcov.info`
 for analyzer import, and fails below 85% line coverage. Weavatrix architecture
 verification is backed by `.weavatrix/architecture.json`. The current local
-LLVM report measures 93.03% of lines and 90.60% of functions.
+LLVM report measures 93.59% of lines and 91.04% of functions.
 
 ## License
 

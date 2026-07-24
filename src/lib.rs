@@ -16,10 +16,13 @@ mod undirected;
 mod working;
 
 pub use algo::{
-    Condensation, Direction, MaxFlow, SpanningForest, WeightedPath, bfs, bfs_filtered,
-    condensation, condensation_filtered, dfs, dfs_filtered, dijkstra, dijkstra_filtered,
-    find_cycle, find_cycle_filtered, has_cycle, has_cycle_filtered, maximum_flow,
-    minimum_spanning_forest, reachable, reachable_filtered, shortest_path, shortest_path_filtered,
+    BellmanFord, Condensation, DagTransitive, Direction, Dominators, DominatorsIter, MaxFlow,
+    SignedPath, SpanningForest, WeightedPath, astar, astar_filtered, bellman_ford,
+    bellman_ford_filtered, bfs, bfs_filtered, condensation, condensation_filtered,
+    dag_transitive_reduction_closure, dag_transitive_reduction_closure_filtered, dfs, dfs_filtered,
+    dijkstra, dijkstra_filtered, dominators, dominators_filtered, find_cycle, find_cycle_filtered,
+    has_cycle, has_cycle_filtered, maximum_flow, minimum_spanning_forest, page_rank,
+    page_rank_filtered, reachable, reachable_filtered, shortest_path, shortest_path_filtered,
     strongly_connected_components, strongly_connected_components_filtered, topological_sort,
     topological_sort_filtered, weakly_connected_components, weakly_connected_components_filtered,
 };

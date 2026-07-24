@@ -42,6 +42,14 @@ pub enum GraphError {
         numerator: u64,
         denominator: u64,
     },
+    InvalidAlgorithmParameter {
+        algorithm: &'static str,
+        parameter: &'static str,
+        value: String,
+    },
+    NegativeCycle {
+        algorithm: &'static str,
+    },
 }
 
 impl Display for GraphError {
@@ -94,6 +102,14 @@ impl Display for GraphError {
                 formatter,
                 "probability {numerator}/{denominator} must have a nonzero denominator and be at most one"
             ),
+            Self::InvalidAlgorithmParameter {
+                algorithm,
+                parameter,
+                value,
+            } => write!(formatter, "invalid {parameter} for {algorithm}: {value}"),
+            Self::NegativeCycle { algorithm } => {
+                write!(formatter, "{algorithm} found a reachable negative cycle")
+            }
         }
     }
 }

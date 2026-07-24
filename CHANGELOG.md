@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.0 - 2026-07-23
+
+- Add A* with admissible heuristics, direction selection, and edge filtering.
+- Add checked signed Bellman-Ford distances, predecessors, path reconstruction,
+  overflow reporting, and reachable-negative-cycle detection.
+- Add standard O(V + E)-per-iteration PageRank with uniform dangling-mass
+  redistribution and semantic-edge filtering.
+- Add deterministic control-flow dominators with immediate, strict, dominance,
+  and child queries.
+- Add bitset-backed DAG transitive reduction and closure with cycle rejection,
+  canonical endpoints, duplicate-edge elimination, and filtered variants.
+- Add deterministic reference cases and randomized differential tests against
+  `petgraph` for shortest paths, negative cycles, dominators, and DAG results.
+- Add reproducible competitor benchmarks and document the one known
+  Bellman-Ford numeric-contract tradeoff instead of conflating unlike results.
+- Keep the MIT license, `unsafe` ban, 300-line source budget, Rust 1.88 MSRV,
+  and unchanged one-dependency runtime surface.
+
 ## 0.3.0 - 2026-07-23
 
 - Add filter-aware SCC, cycle discovery, cycle checks, and topological sorting

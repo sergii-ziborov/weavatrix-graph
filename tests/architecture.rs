@@ -63,10 +63,15 @@ fn domain_modules_use_facades_with_focused_leaf_files() {
         "src/algo.rs",
         "src/algo",
         &[
+            "astar.rs",
+            "bellman.rs",
             "components.rs",
+            "dominators.rs",
             "flow.rs",
             "mst.rs",
+            "rank.rs",
             "shortest.rs",
+            "transitive.rs",
             "traversal.rs",
         ],
     );
