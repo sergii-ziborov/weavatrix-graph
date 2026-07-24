@@ -126,6 +126,14 @@ fn graph_error_display_messages_cover_every_variant() {
             numerator: 2,
             denominator: 1,
         },
+        GraphError::InvalidAlgorithmParameter {
+            algorithm: "PageRank",
+            parameter: "damping",
+            value: "NaN".into(),
+        },
+        GraphError::NegativeCycle {
+            algorithm: "Bellman-Ford",
+        },
     ];
 
     let messages = errors
@@ -145,6 +153,8 @@ fn graph_error_display_messages_cover_every_variant() {
     assert!(messages.contains("arithmetic overflow"));
     assert!(messages.contains("outside matrix node count"));
     assert!(messages.contains("probability 2/1"));
+    assert!(messages.contains("invalid damping for PageRank"));
+    assert!(messages.contains("reachable negative cycle"));
     assert!(GraphError::EmptyNodeId.source().is_none());
 }
 
